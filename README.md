@@ -66,7 +66,7 @@ Open `base.ipynb` and run cells top-to-bottom.
 
 ## Data notes
 
-`Weather.zip` should contain meteorological inputs and sensors data used by the workflow.
+`Weather.zip` should contain meteorological inputs and input data used by the workflow.
 
 `Optical.zip` should contain optical inputs used by the workflow.
 
