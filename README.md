@@ -1,4 +1,14 @@
-# HMT-Agrivoltaics
+<p align="center">
+  <img src="logo-HMT-APV.png"
+       alt="HMT-Agrivoltaics logo"
+       width="240">
+</p>
+
+<h1 align="center">HMT-Agrivoltaics</h1>
+
+<p align="center">
+  <strong>Heat &amp; Mass Transfer Modelling in Agrivoltaic Orchards</strong>
+</p>
 
 Heat and mass transfer (HMT) utilities and notebooks for open-field bifacial semi-transparent agrivoltaic orchards modelling workflows. 
 
