@@ -18,12 +18,12 @@ This repository contains a small set of Python modules, a Jupyter notebook, and 
 
 ### Repository structure
 
-- `base.ipynb` — main notebook entry point for running/inspecting the workflow.
-- `functions_module.py` — helper functions used by the notebook/workflow. 
-- `ET_func.py` — evapotranspiration-related utilities (as used in the workflow). 
-- `py56FAO/` — local FAO-56 related code/resources used by the project. 
-- `Optical.zip` — optical-related input files (zipped). 
-- `Weather.zip` — weather input files (zipped).  
+- `base.ipynb`  main notebook entry point for running/inspecting the workflow.
+- `functions_module.py`  helper functions used by the notebook/workflow. 
+- `ET_func.py`  evapotranspiration-related utilities (as used in the workflow). 
+- `py56FAO/`  local FAO-56 related code/resources used by the project. 
+- `Optical.zip`  optical-related input files (zipped). 
+- `Weather.zip`  weather input files (zipped).  
 
 ## Quick start
 ### 1) Clone the repository
