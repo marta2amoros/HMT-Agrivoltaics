@@ -60,7 +60,13 @@ jupyter notebook
 Open `base.ipynb` and run cells top-to-bottom.
 
 
-## Typical workflow
+## Workflow
+
+<p align="center">
+  <img src="Model-Structure.jpg"
+       alt="Model structure scheme"
+       width="800">
+</p>
 
 1. Unzip `Weather.zip` and `Optical.zip` into `Weather/` and `Optical/`.
 
@@ -76,9 +82,9 @@ Open `base.ipynb` and run cells top-to-bottom.
 
 ## Data notes
 
-`Weather.zip` should contain meteorological inputs and input data used by the workflow.
+`Weather.zip` contains meteorological inputs and input data used by the case study in the workflow, which can be substituted by other scenarios.
 
-`Optical.zip` should contain optical inputs used by the workflow.
+`Optical.zip` contains optical inputs used by the workflow for the specified case study. Other configurations can be adapted.
 
 If you change the input datasets, keep the expected file names and folder structure (or update the paths used in `base.ipynb`).
 
