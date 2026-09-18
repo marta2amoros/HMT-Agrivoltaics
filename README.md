@@ -12,6 +12,8 @@
 
 Heat and mass transfer (HMT) utilities and notebooks for open-field bifacial semi-transparent agrivoltaic orchards modelling workflows. 
 
+Open use of this repository is encouraged, provided appropriate acknowledgment is given to: M. Amorós-Trepat et al., under peer review (2026).
+
 ## What’s in this repo
 
 This repository contains a small set of Python modules, a Jupyter notebook, and bundled input data.
