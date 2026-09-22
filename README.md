@@ -90,3 +90,7 @@ Open `base.ipynb` and run cells top-to-bottom.
 
 If you change the input datasets, keep the expected file names and folder structure (or update the paths used in `base.ipynb`).
 
+## License
+
+This project is licensed under the terms specified in `License`
+
