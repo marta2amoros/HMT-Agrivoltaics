@@ -208,7 +208,7 @@ def compute_statistics(Tm_model, Tm_reference):
 ####################################
 
 # ET0 Reference FAO and ASCE (Standardization of Reference Evapotranspiration of the Environmental and Water Resources Institute of ASCE) calculation of ET0: 
-# differs from mine: assumes ctPatm(elevation), ideal gas for density, esat, radiation(empirical model, through linear regressions)
+# differs from this work: assumes ctPatm(elevation), ideal gas for density, esat, radiation(empirical model, through linear regressions)
 def ascehourly(rfcrp,z,lat,lon,lzn,doy,sct,israd,tavg,vapr,
                tdew,rhum,tmin, wndsp,poa_global,wndht,tl,csreq,fcdpt):
     """Compute hourly ASCE Standardized Reference Evapotranspiration
