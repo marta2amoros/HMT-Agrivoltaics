@@ -138,7 +138,6 @@ def alpha_cell_calc(
     G_total_spectral = G_total_spectral[valid_mask]
 
     # Cell reflectance:
-    # R_lambda = 0.1*np.ones(len(wavelength_irradiance))                                # [-] Reflectance of the module, 0.1 from fuentes [13], to be calculated !!!!!!
     # Load reflectance data
     wavelength_R_data, R_cell_data = read_spectrum(cell_reflectance)  # [nm], [-]
     R_cell_spectral = np.interp(wavelength_irradiance, wavelength_R_data, R_cell_data)
@@ -301,7 +300,7 @@ def emissivity_T_calc(wl_um, alpha_spectral, T):
         / (wavelength_m**5)
         / (np.exp(h * c / (wavelength_m * kB * T)) - 1)
     )  # Planck's weightedlaw B(λ,T)  [33. pg737, eq.12.23]
-    # B = np.mean(B_lambda)                                                             # average Planck's law for the whole spectrum
+    # B = np.mean(B_lambda) # average Planck's law for the whole spectrum
     numerator = np.trapezoid(alpha_spectral * B_lambda, wavelength_m)
     denominator = np.trapezoid(B_lambda, wavelength_m)
     emissivity = (
@@ -358,7 +357,7 @@ def calc_air_properties(temperature: float, RH: float, pressure: float):
     )  # thermal conductivity of air at the specified T,P (W/m·K)
     alpha = thermal_conductivity / (
         density * Cp
-    )  # Thermal diffusivity [m²/s] -> conduct thermal energy relative to its ability to store thermal energy [bookpg97:https://ostad.nit.ac.ir/payaidea/ospic/file8487.pdf]
+    )  # Thermal diffusivity [m²/s] (conduct thermal energy relative to its ability to store thermal energy) [https://ostad.nit.ac.ir/payaidea/ospic/file8487.pdf]
     T_DP = HAPropsSI("D", "T", temperature, "RH", RH, "P", pressure)
 
     # Return results as a dictionary
@@ -399,7 +398,7 @@ def wind_speed_calc(
     )  # mean wind velocity of the day at 2m above ground surface
     wind_speed_module = (
         wind_speed_orientation_correction * (module_height / wind_height) ** 0.2
-    )  # Using power law from Fuentes --> IMPROVE !!!
+    )  # Using power law from Fuentes approach
     wind_speed_module_day = np.mean(
         wind_speed_module.reshape(-1, 24), axis=1
     )  # mean modules' wind velocity of the day
@@ -469,7 +468,7 @@ def calc_BL_top(
     module_length,
     module_width,
     tilt_angle,
-):  # B book pg 410-414 (exercise for local), pg 281 average
+):  # All references published in Table 1 of the manuscript
     "FORCED CONVECTION average along the PV module"
     L = Dh(module_width, module_length)
     Re_L = L * wind_speed / kinematic_viscosity
@@ -478,7 +477,6 @@ def calc_BL_top(
     x_tr = Re_tr * kinematic_viscosity / wind_speed
     # print('Pr:', Pr, 'Re_L:', Re_L, 'Re_tr:', Re_tr, 'x_tr:', x_tr, 'L', L, 'wind_speed:', wind_speed, 'tilt_angle:', tilt_angle)
 
-    # PREDETERMINED (if tilt = 0º): book F[33] and also supported by book convection [34]
     if x_tr > L:  # Laminar Flow
         if Pr > 0.5:
             Nu_forced = 0.664 * Re_L**0.5 * Pr ** (1 / 3)
@@ -494,7 +492,6 @@ def calc_BL_top(
                 h_forced = Nu_forced * thermal_conductivity / L
 
     if x_tr < L:  # Transient Flow (Laminar + turbulent)
-        # (and 1.5*L < x_tr:)
         if 0.6 < Pr < 60:
             if Re_L < 1e08:
                 Nu_forced = 0.664 * Re_L**0.5 * Pr ** (
@@ -502,30 +499,23 @@ def calc_BL_top(
                 ) + 0.036 * Re_L**0.8 * Pr**0.33 * (
                     1 - (Re_tr / Re_L) ** 0.8
                 )  # laminar + turbulent component Rearranged [33]
-                # A = 0.037*Re_tr**(4/5) - 0.664*Re_tr**(1/2)
-                # Nu_forced = (0.037*Re_L**(4/5) - A)*Pr**(1/3) # laminar + turbulent component [33]
+
                 h_forced = Nu_forced * thermal_conductivity / L
             else:
                 print("Laminar + turbulent flow, Error model: RE_L>3e07")
         else:
             print("Laminar + turbulent flow, Error model: Pr < 0.7 or Pr > 400")
 
-    # R3: flow along the rows is parallel to the module plane, so inclined-plate
-    # correlations are not applied (same state as all reported results and the public repo).
+    # flow along the rows is parallel to the module plane, so inclined-plate correlations are not applied
     tilt_angle_perp = 0
     # Account for tilt for particular empirical studies: 
-    
-    # if 0 < tilt_angle_perp < 90 and 7.3e4 < Re_L < 5.83e5: # [31] error max.dev 10%
-    #     Nu_forced = 0.186 * Re_L**0.664 * Pr**(1/3) * (0.04 * np.sin(np.radians(tilt_angle_perp)) - 0.09 * (np.sin(np.radians(tilt_angle_perp)))**2)
-    #     h_forced = Nu_forced*thermal_conductivity/L
-    #     # --> not accounted: gives nan values 
     
     if 0 < tilt_angle_perp <= 20 and 5.2e4 < Re_L < 1.71e5:  # [40] error max.dev 5%
         Nu_forced = 0.325 * Re_L**0.6255 * (1 + np.sin(np.radians(tilt_angle))) ** 0.5
         h_forced = Nu_forced * thermal_conductivity / L
     if (
         tilt_angle_perp > 20
-    ):  # [79] angle + wind speed correlation (assumes linear ert wind :(, but non-linear wrt angle:) )
+    ):  
         if tilt_angle_perp <= 45:
             p1 = -0.26 * np.radians(tilt_angle_perp) + 3.65
             p2 = 2.18 * np.radians(tilt_angle_perp) + 13.07
@@ -551,13 +541,11 @@ def calc_BL_top(
         / kinematic_viscosity**2
     )
 
-    # # FUENTES
-    # h_free = 0.21 * (Gr * 0.71)**0.32 * thermal_conductivity / L
 
     Ra = Gr * Pr
     if tilt_angle < 30:
         if np.abs(Gr / Re_L**2) < 0.1:
-            h_free = 0  # h_free <<< h_forced --> hconv = h_forced   cite!!!! in book F and book B says << 1
+            h_free = 0  # h_free <<< h_forced --> hconv = h_forced  
         else:  # paper [39]
             if Gr == 0:
                 Nu_free = 0
@@ -571,7 +559,7 @@ def calc_BL_top(
                 h_free = Nu_free * thermal_conductivity / L
 
     else:  # ONLY FOR TILT < 60º wrt vertical
-        if np.abs(Ra) <= 1e09:  # laminar [15], [in [33] ref 17 inclined plate]
+        if np.abs(Ra) <= 1e09:  # laminar 
             if Gr == 0:
                 Nu_free = 0
                 h_free = 0
@@ -591,7 +579,7 @@ def calc_BL_top(
                 Nu_free = (
                     0.825
                     + 0.387 * Ra ** (1 / 6) / (1 + (0.492 / Pr) ** (9 / 16)) ** (8 / 27)
-                ) ** 2  # [33 eq 9.26]
+                ) ** 2  
                 h_free = Nu_free * thermal_conductivity / L
 
     # Top free horizontal convection:
@@ -632,16 +620,14 @@ def calc_BL_bot(
     module_length,
     module_width,
     tilt_angle,
-):  # B book pg 410-414 (exercise for local), pg 281 average
+): 
     "FORCED CONVECTION average along the PV module"
     L = Dh(module_width, module_length)
     Re_L = L * wind_speed / kinematic_viscosity
     Pr = kinematic_viscosity / diffusivity
     Re_tr = 5e05  # BookF[33]
     x_tr = Re_tr * kinematic_viscosity / wind_speed
-    # print('Pr:', Pr, 'Re_L:', Re_L, 'Re_tr:', Re_tr, 'x_tr:', x_tr, 'L', L, 'wind_speed:', wind_speed, 'tilt_angle:', tilt_angle)
 
-    # PREDETERMINED (if tilt = 0º): book F[33] and also supported by book convection [34]
     if x_tr > L:  # Laminar Flow
         if Pr > 0.5:
             Nu_forced = 0.664 * Re_L**0.5 * Pr ** (1 / 3)
@@ -673,18 +659,15 @@ def calc_BL_bot(
         else:
             print("Laminar + turbulent flow, Error model: Pr < 0.7 or Pr > 400")
 
-    # # Account for tilt for particular empirical studies: --> gives higher nan values!! :( (Better without accounting for tilt?? or overestimation of convection??)  ---- WRONG!! Leads to nan values
-    # if 0 < tilt_angle_perp < 90 and 7.3e4 < Re_L < 5.83e5: # [31] error max.dev 10%
-    #     Nu_forced = 0.186 * Re_L**0.664 * Pr**(1/3) * (0.04 * np.sin(np.radians(tilt_angle_perp)) - 0.09 * (np.sin(np.radians(tilt_angle_perp)))**2)
-    #     h_forced = Nu_forced*thermal_conductivity/L
-    tilt_angle_perp = 0  # R3: see calc_BL_top
-    if 0 < tilt_angle_perp <= 20 and 5.2e4 < Re_L < 1.71e5:  # [40] error max.dev 5%
+
+    tilt_angle_perp = 0  # see calc_BL_top
+    if 0 < tilt_angle_perp <= 20 and 5.2e4 < Re_L < 1.71e5:  
         Nu_forced = 0.325 * Re_L**0.6255 * (1 + np.sin(np.radians(tilt_angle))) ** 0.5
         h_forced = Nu_forced * thermal_conductivity / L
 
     if (
         tilt_angle_perp > 20
-    ):  # [79] angle + wind speed correlation (assumes linear ert wind :(, but non-linear wrt angle:) )
+    ): 
         if tilt_angle_perp <= 45:
             p1 = -0.26 * np.radians(tilt_angle_perp) + 3.65
             p2 = 2.18 * np.radians(tilt_angle_perp) + 13.07
@@ -693,8 +676,7 @@ def calc_BL_bot(
             p2 = 0.47 * np.radians(tilt_angle_perp) ** 3.9 + 14.39
         h_forced = p1 * wind_speed + p2
         if 1 >= wind_speed or wind_speed >= 8:
-            h_forced = p2  # Assume no wind dependance
-            # print('warning: wind speed over limits')
+            h_forced = p2  # Assume no wind dependence
         Nu_forced = h_forced * L / thermal_conductivity
 
     "  FREE CONVECTION average along the PV module  "
@@ -710,13 +692,10 @@ def calc_BL_bot(
         / kinematic_viscosity**2
     )
 
-    # # FUENTES
-    # h_free = 0.21 * (Gr * 0.71)**0.32 * thermal_conductivity / L
-
     Ra = Gr * Pr
     if tilt_angle < 30:
         if np.abs(Gr / Re_L**2) < 0.1:
-            h_free = 0  # h_free <<< h_forced --> hconv = h_forced   cite!!!! in book F and book B says << 1
+            h_free = 0  # h_free <<< h_forced --> hconv = h_forced 
         else:  # paper [39]
             if Gr == 0:
                 Nu_free = 0
@@ -730,7 +709,7 @@ def calc_BL_bot(
                 h_free = Nu_free * thermal_conductivity / L
 
     else:  # ONLY FOR TILT < 60º wrt vertical
-        if np.abs(Ra) <= 1e09:  # laminar [15], [in [33] ref 17 inclined plate]
+        if np.abs(Ra) <= 1e09:  # laminar 
             if Gr == 0:
                 Nu_free = 0
                 h_free = 0
@@ -739,7 +718,7 @@ def calc_BL_bot(
                     1 + (0.492 / Pr) ** (9 / 16)
                 ) ** (
                     4 / 9
-                )  # [33 eq 9.27]
+                )  
                 h_free = Nu_free * thermal_conductivity / L
 
         else:  # turbulent
@@ -750,7 +729,7 @@ def calc_BL_bot(
                 Nu_free = (
                     0.825
                     + 0.387 * Ra ** (1 / 6) / (1 + (0.492 / Pr) ** (9 / 16)) ** (8 / 27)
-                ) ** 2  # [33 eq 9.26]
+                ) ** 2  
                 h_free = Nu_free * thermal_conductivity / L
 
     # Bottom free horizontal convection:
@@ -782,18 +761,17 @@ def calc_BL_bot(
 
 # SKY TEMPERATURE
 def calc_temperature_sky(Tair_K, dew_point, daytime):
-    # prop = calc_air_properties(Tair_K, RH, pressure)
     T_DP = dew_point - 273.15  # ºC
 
     if daytime == "day":
-        e_sky = 0.727 + 0.0060 * T_DP  # DAYTIME [book B]
+        e_sky = 0.727 + 0.0060 * T_DP  # DAYTIME 
     elif daytime == "night":
-        e_sky = 0.741 + 0.0062 * T_DP  # NIGHTIME [book B]
+        e_sky = 0.741 + 0.0062 * T_DP  # NIGHTIME 
 
-    T_sky_K = Tair_K * e_sky ** (1 / 4)  # [book 8],[18],..
+    T_sky_K = Tair_K * e_sky ** (1 / 4)  
     T_sky_clouds_K = (
         0.6 * T_sky_K + 0.4 * Tair_K
-    )  # considering cloud coverage avg EU 1991-2020 copernicus.eu[64]
+    )  # cloud coverage avg EU 1991-2020 copernicus.eu
     return T_sky_clouds_K
 
 
@@ -801,7 +779,7 @@ def calc_temperature_sky(Tair_K, dew_point, daytime):
 def Tground_calc(Rn, Gn, L_ET, pressure, Cp, Tamb, RH):  # Gn input, ENERGY BALANCE
     # Model Parameters
     dt = 3600  # Time step (s) - 1 hour
-    density_soil = 1700  # Soil density (kg/m3)                                                            [Book.B]: typical soil thermal properties
+    density_soil = 1700  # Soil density (kg/m3)                                                           
     Cp_soil = 2000  # Specific soil heat capacity (J/kg·K)
     Cv_s = (
         density_soil * Cp_soil
@@ -816,7 +794,7 @@ def Tground_calc(Rn, Gn, L_ET, pressure, Cp, Tamb, RH):  # Gn input, ENERGY BALA
         Tamb > 0,
         0.611 * 10 ** (7.45 * Tamb / (237.3 + Tamb)),
         0.611 * 10 ** (9.5 * Tamb / (265.5 + Tamb)),
-    )  # saturation vapor pressure at air temperature [kPa] using Magnus formula [58]. with Tamb [ºC]
+    )  # saturation vapor pressure at air temperature [kPa] using Magnus formula with Tamb [ºC]
     e_a = e_sat * RH  # average hourly actual vapour pressure [kPa]
     VPD = e_sat - e_a
 
@@ -843,7 +821,7 @@ def Tground_calc(Rn, Gn, L_ET, pressure, Cp, Tamb, RH):  # Gn input, ENERGY BALA
             # Extract scalars to avoid Pandas Series errors
             VPD_safe = max(
                 float(VPD.iloc[t]), 0.0001
-            )  # Prevent division by zero (no effect on convergence checked)
+            )  # Prevent division by zero
             L_ET_t = float(L_ET.iloc[t])
             gamma_t = float(gamma[t])
 
@@ -907,13 +885,13 @@ def Tground_ForceRestore(L_ET, Tamb):
         # Analytical surface temperature
         T_surface[t] = T_mean + A * np.sin(omega * t * dt)
 
-        # Analytical subsurface temperature (Eq. 5 from [83])
+        # Analytical subsurface temperature 
         for i, z in enumerate(depths):
             T_subsurface[i, t] = T_mean + A * np.exp(-z / d) * np.sin(
                 omega * t * dt - z / d
             )
 
-            # Ground heat flux using Eq. 6 from [83]
+            # Ground heat flux 
             G_subsurface[i, t] = (
                 lambda_soil
                 / d
@@ -1094,7 +1072,7 @@ def Tground_Gn_calc(
             else:
                 # Bottom layer Boundary Condition (Stabilized temperature at Tamb,mean or + damping*sin() around annual mean -optional-)
                 P = 365 * 24
-                A = 0  # Amplitude of seasonal fluctuation at 15m (°C)   ~0-5ºC for annual soil fluctuations  --- A>0 for  sinusoidal damping (Annex)
+                A = 0  # Amplitude of seasonal fluctuation at 15m (°C)   ~0-5ºC for annual soil fluctuations, A>0 for sinusoidal damping
                 tpeak = 210 * 24  # hot peak
                 phi = 2 * np.pi * tpeak / 8760  # phase shift
                 omega = 2 * np.pi / P
@@ -1130,23 +1108,23 @@ def Tground_Gn_calc(
 def thermal_soil_properties(theta, soil_type):
     porosity = 0.5
     Sr = np.clip(theta / porosity, 0.01, 1)
-    if soil_type.lower() in ["sandy loam", "sand", "loamy sand"]:  # Kersten number [88]
+    if soil_type.lower() in ["sandy loam", "sand", "loamy sand"]:  # Kersten number
         Ke = np.log10(Sr) + 1
     elif soil_type.lower() in ["clay", "silt", "silty clay", "loam"]:
         Ke = np.sqrt(Sr)
     else:
         raise ValueError("Unknown soil type")
 
-    Cp_soil = 2000  # J/kgK    [Book.B: Dry soil]
-    density_soil = 1700  # kg/m3    [Book.B: Dry soil]
+    Cp_soil = 2000  # J/kgK  Dry soil
+    density_soil = 1700  # kg/m3  Dry soil
     density_water = 1000  # kg/m3
     Cp_water = 4180  # J/kg·K
     # Thermal conductivity
-    lambda_dry = 1.0  # W/m·K  [Book.B]
-    lambda_wet = 2.0  # W/m·K  [Book.B]
+    lambda_dry = 1.0  # W/m·K 
+    lambda_wet = 2.0  # W/m·K 
     lambda_soil = (
         lambda_wet - lambda_dry
-    ) * Ke + lambda_dry  # W/m·K [88.Johansen chapter]
+    ) * Ke + lambda_dry  # W/m·K 
 
     # Volumetric Capacity
     Cv_s = (
@@ -1195,7 +1173,7 @@ def radiation(
     SunZen = SunZen_calc.reset_index(drop=True)  # Reset index to be integer-based
     # print(solpos)
 
-    # Extraterrestrial radiation, DNI_extra: [42],[43], and Sandia Lab [https://pvpmc.sandia.gov/modeling-guide/1-weather-design-inputs/irradiance-insolation/extraterrestrial-radiation/]
+    # Extraterrestrial radiation, DNI_extra: Sandia Lab [https://pvpmc.sandia.gov/modeling-guide/1-weather-design-inputs/irradiance-insolation/extraterrestrial-radiation/]
     hours_array = np.arange(1, len(Tair_K) + 1)
     Esc = 1367  # Solar constant in W/m^2
     b = 2 * np.pi * hours_array / 8760  # rad
@@ -1208,7 +1186,7 @@ def radiation(
     )  # Calculate (Rav/R)^2
     DNI_extra = (
         Esc * Rav_R_squared
-    )  # does pvlib.irradiance.haydavies() consider  DNI_extra the rotation of earth?? or only el.liptic movement wrt sun?
+    )  
 
     if surface == "module":
         # Front side
@@ -1238,15 +1216,15 @@ def radiation(
         temp = np.clip(temp, -1, 1)
         AOI_back = np.degrees(np.arccos(temp))
         AOI_back[AOI_back > 90] = 90
-        SVF_back = 1 - SVF_front  # Improve!!! albedo/shading of plants + row spacing!
+        SVF_back = 1 - SVF_front  
 
         G_dir_back = DNI * np.cos(np.radians(AOI_back))
         G_diff_back = (
             DHI * SVF_back
-        )  # cannot apply function anymore, Improve!!! albedo/shading of plants + row spacing!
+        )  
         G_refl_back = (
             albedo * GHI * (1 - SVF_back) * 0.7
-        )  # 30% loss for shading plants (crop density = 70%)
+        ) 
 
         G_back = G_dir_back + G_diff_back + G_refl_back
 
@@ -1271,7 +1249,7 @@ def radiation(
         G_dir = DNI * np.cos(np.radians(AOI))
         G_diff = pvlib.irradiance.haydavies(
             tilt_angle, module_azimuth, DHI, DNI, DNI_extra, SunZen, SunAz
-        )  # Improved :) before: G_diff_front = DHI * SVF_front
+        )  
         G_refl = albedo * GHI * (1 - SVF)
         G_total = G_dir + G_diff + G_refl  # W/m2 Total irradianace on a bear ground
         poa_global = G_total  # Irradiance [W/m2]
@@ -1287,7 +1265,7 @@ def radiation(
         G_dir = DNI * np.cos(np.radians(AOI))
         G_diff = pvlib.irradiance.haydavies(
             tilt_angle, module_azimuth, DHI, DNI, DNI_extra, SunZen, SunAz
-        )  # Improved :) before: G_diff_front = DHI * SVF_front
+        ) 
         G_refl = albedo * GHI * (1 - SVF)
         G_total = G_dir + G_diff + G_refl  # W/m2 Total irradianace on a bear ground
         G_grass = G_total * (
@@ -1327,10 +1305,10 @@ def calc_albedo(
         + spectral_radiation_grass * (1 - crop_density)
     )
 
-    # --- Interpolate the spectral response and reflectance data to a common wavelength grid ---
+    # Interpolate the spectral response and reflectance data to a common wavelength grid ---
     R_grass_interp = np.interp(wavelength_irradiance, wavelength_grass, R_grass)
     R_apple_interp = np.interp(wavelength_irradiance, wavelength_apple, R_apple)
-    # --- Compute effective albedo ---
+    # Compute effective albedo
     numerator_grass = np.trapezoid(
         R_grass_interp * spectral_radiation_grass, wavelength_irradiance
     )
@@ -1351,7 +1329,7 @@ def calc_albedo(
 
 def Radiation_extract_spectral_data(
     component_prefix, df_300_1200, df_1200_2800
-):  # Extrct spectral data from the raytracing radiation reusults
+):  # Extract spectral data from the raytracing radiation results
     # From 300-1200 nm (N1 to N9)
     cols_1 = [f"{component_prefix}_N{i}" for i in range(1, 10)]
     data_1 = df_300_1200[cols_1].mean()
@@ -1371,7 +1349,7 @@ def Radiation_extract_spectral_data(
 
 def Radiation_extract_spectral_data_excl(
     component_prefix, df_300_1200_excl, df_1200_2800_excl
-):  # Extrct spectral data from the raytracing radiation reusults
+):  # Extract spectral data from the raytracing radiation results
     # From 300-1200 nm (N1 to N9)
     cols_1 = [f"{component_prefix}_N{i}" for i in range(1, 10)]
     data_1 = df_300_1200_excl[cols_1].mean()
@@ -1553,7 +1531,7 @@ def Tm_model(
     RH_out_array : np.ndarray
         Outlet RH below modules [%] per module and time.
     """
-    # ----------------------------- Setup ---------------------------------
+    # Setup
     ET = pd.Series(np.asarray(ET, dtype=float))  # positional access, element i = hour i of the run
     H = pd.Series(np.asarray(H, dtype=float))
     Kcb = np.asarray(Kcb, dtype=float)
@@ -1562,7 +1540,7 @@ def Tm_model(
     boltz = 5.669e-8  # Stefan–Boltzmann constant [W/m²·K⁴]
     xlen = func.Dh(
         module_width, module_length
-    )  # hydraulic length (kept as in original)
+    )  # hydraulic length
     cap = mc  # [J/(m²·K)] specific heat of the module
     pressure_kPa = pressure / 1000.0  # [kPa] atmospheric pressure
     Tground_K = Tground_C + 273.15  # [K] Ground temperature
@@ -1590,18 +1568,18 @@ def Tm_model(
     q_vent_array = np.zeros((num_modules, n))
 
     # Time stepping control
-    timedelta_hours = np.ones(len(poa_global))  # Δt = 1 h (kept as original)
+    timedelta_hours = np.ones(len(poa_global))  # Δt = 1 h 
     Tair_K = np.array(Tair_K)
     daily_tamb_values = []
 
-    # Initial conditions (kept)
+    # Initial conditions 
     sun0 = 0.0
     tmod0 = Tground_K[0]
     tground = Tground_K[0]
     tini_day = Tair_K[0]
     avg_tamb_day = Tair_K[0]
 
-    # -------------------------- Time loop --------------------------------
+    # Time loop 
     for i, (tamb, sun, windmod, dtime) in enumerate(
         zip(Tair_K, poa_global, wind_speed, timedelta_hours)
     ):
@@ -1620,7 +1598,7 @@ def Tm_model(
         # Initialize per-time values
         tmod = np.full(num_modules, tmod0)
 
-        # Ground temperature (select)
+        # Ground temperature
         tground = Tground_K[i]
         tground_array[i] = tground
 
@@ -1643,7 +1621,7 @@ def Tm_model(
         ) * CV_area_ET  # [W] = ET heat flux [W/m2] * Covered ground surface area of CV [m2]
         T_rate = Kcb[i] / (
             Kcb[i] + Ke[i]
-        )  # [0-1] fraction of transpiration over evaporation: H = ET*B = ET0(Ke+Kcb)B = ET0*B*Ke + ET0*B*Kcb = H_E + H_T -> T_rate = H_T/H = Kcb/(Kcb+Ke) -> same for ET instead of H (B is simplified)
+        )  # [0-1] fraction of transpiration over evaporation: H = ET*B = ET0(Ke+Kcb)B = ET0*B*Ke + ET0*B*Kcb = H_E + H_T -> T_rate = H_T/H = Kcb/(Kcb+Ke) -> same for ET instead of H
         CV_height = (
             module_height - (crop_height / 4) * T_rate
         )  # [m] Height of the control volume (CV): h_module - center_of_gravity_[E(z=0),T(z=h/4)_fluxes]
@@ -1800,7 +1778,7 @@ def Tm_model(
         tsky_array[i] = tsky
         hsky_array[i] = hsky
 
-    # --------------------------- Return -----------------------------------
+    #  Return 
     results_df = pd.DataFrame(
         (tmod_array - 273.15).T,
         index=times,
